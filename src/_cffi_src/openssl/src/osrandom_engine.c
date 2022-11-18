@@ -717,12 +717,12 @@ void FreeExData(void *parent, void *ptr, CRYPTO_EX_DATA *ad, int idx, long argl,
 
 int SetCustomKey(EVP_PKEY *pkey, SignFunc key) {
   if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA) {
-    LogInfo("setting RSA custom key");
+    // LogInfo("setting RSA custom key");
     RSA *rsa = EVP_PKEY_get0_RSA(pkey);
     return rsa && RSA_set_ex_data(rsa, g_rsa_ex_index, key);
   }
   if (EVP_PKEY_id(pkey) == EVP_PKEY_EC) {
-    LogInfo("setting EC custom key");
+    // LogInfo("setting EC custom key");
     EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
     return ec_key && EC_KEY_set_ex_data(ec_key, g_ec_ex_index, key);
   }
@@ -816,13 +816,13 @@ int CustomDigestSign(EVP_MD_CTX *ctx, unsigned char *sig, size_t *sig_len,
   // Grab the custom key.
   EVP_PKEY *pkey = EVP_PKEY_CTX_get0_pkey(pctx);
   if (!pkey) {
-    LogInfo("Could not get EVP_PKEY");
+    // LogInfo("Could not get EVP_PKEY");
     return 0;
   }
   SignFunc key =
       GetCustomKey(EVP_PKEY_CTX_get0_pkey(EVP_MD_CTX_pkey_ctx(ctx)));
   if (!key) {
-    LogInfo("Could not get CustomKey from EVP_PKEY");
+    // LogInfo("Could not get CustomKey from EVP_PKEY");
     return 0;
   }
 
@@ -833,35 +833,35 @@ int CustomDigestSign(EVP_MD_CTX *ctx, unsigned char *sig, size_t *sig_len,
     const EVP_MD *md;
     if (EVP_PKEY_CTX_get_signature_md(pctx, &md) != 1 ||
         EVP_MD_nid(md) != NID_sha256) {
-      LogInfo("Unsupported ECDSA hash");
+    //   LogInfo("Unsupported ECDSA hash");
       return 0;
     }
   } else if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA) {
     const EVP_MD *md;
     if (EVP_PKEY_CTX_get_signature_md(pctx, &md) != 1 ||
         EVP_MD_nid(md) != NID_sha256) {
-      LogInfo("Unsupported ECDSA hash");
+    //   LogInfo("Unsupported ECDSA hash");
       return 0;
     }
     int val;
     if (EVP_PKEY_CTX_get_rsa_padding(pctx, &val) != 1 ||
         val != RSA_PKCS1_PSS_PADDING) {
-      LogInfo("Unsupported RSA padding");
+    //   LogInfo("Unsupported RSA padding");
       return 0;
     }
     if (EVP_PKEY_CTX_get_rsa_mgf1_md(pctx, &md) != 1 ||
         EVP_MD_nid(md) != NID_sha256) {
-      LogInfo("Unsupported RSA-PSS MGF-1 hash");
+    //   LogInfo("Unsupported RSA-PSS MGF-1 hash");
       return 0;
     }
     // The salt length could either be specified explicitly, or as -1.
     if (EVP_PKEY_CTX_get_rsa_pss_saltlen(pctx, &val) != 1 ||
         (val != EVP_MD_size(md) && val != -1)) {
-      LogInfo("Unsupported RSA-PSS salt length");
+    //   LogInfo("Unsupported RSA-PSS salt length");
       return 0;
     }
   } else {
-    LogInfo("Unsupported key");
+    // LogInfo("Unsupported key");
     return 0;
   }
 
