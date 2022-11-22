@@ -718,14 +718,17 @@ void FreeExData(void *parent, void *ptr, CRYPTO_EX_DATA *ad, int idx, long argl,
 int SetCustomKey(EVP_PKEY *pkey, SignFunc key) {
   if (EVP_PKEY_id(pkey) == EVP_PKEY_RSA) {
     // LogInfo("setting RSA custom key");
+    printf("set custom key rsa\n");
     RSA *rsa = EVP_PKEY_get0_RSA(pkey);
     return rsa && RSA_set_ex_data(rsa, g_rsa_ex_index, key);
   }
   if (EVP_PKEY_id(pkey) == EVP_PKEY_EC) {
     // LogInfo("setting EC custom key");
+    printf("set custom key ecdsa 0\n");
     EC_KEY *ec_key = EVP_PKEY_get0_EC_KEY(pkey);
     return ec_key && EC_KEY_set_ex_data(ec_key, g_ec_ex_index, key);
   }
+  printf("not any known key, return 0\n");
   return 0;
 }
 
@@ -921,20 +924,28 @@ EVP_PKEY* MakeCustomEvpPkey(SignFunc custom_key, X509 *cert,
   unsigned char *spki = NULL;
   int spki_len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &spki);
   if (spki_len < 0) {
+    printf("spki_len<0, return 0\n");
     return NULL;
   }
 
   const unsigned char *ptr = spki;
   X509_PUBKEY* pubkey=d2i_X509_PUBKEY(NULL, &ptr, spki_len);
   if (!pubkey) {
+    printf("no pubkey, return 0\n");
     return NULL;
   }
 
-  if (!pubkey || !EVP_PKEY_set1_engine(pubkey, custom_engine) ||
-      !SetCustomKey(pubkey, custom_key)) {
+  EVP_PKEY* wrapped = X509_PUBKEY_get(pubkey);
+  if (!EVP_PKEY_set1_engine(wrapped, custom_engine)) {
+    printf("set1_engine failed\n");
     return NULL;
   }
-  return pubkey;
+
+  if (!SetCustomKey(wrapped, custom_key)) {
+    printf("make custom key failed, return 0\n");
+    return NULL;
+  }
+  return wrapped;
 }
 
 // Part 5. Now we can attach the CustomKey and cert to SSL context.
@@ -943,6 +954,7 @@ int AttachKeyCertToSslContext(SignFunc custom_key, const char *cert,
                                SSL_CTX *ctx, ENGINE *custom_engine) {
   BIO* bio = BIO_new_mem_buf(cert, strlen(cert));
   if (!bio) {
+    printf("no bio, return 0\n");
     return 0;
   }
   X509* x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
@@ -950,20 +962,25 @@ int AttachKeyCertToSslContext(SignFunc custom_key, const char *cert,
   EVP_PKEY* wrapped_key =
       MakeCustomEvpPkey(custom_key, x509, custom_engine);
   if (!wrapped_key) {
+    printf("no wrapped key, return 0\n");
     return 0;
   }
 
   static const char *sig_algs_list = "RSA-PSS+SHA256:ECDSA+SHA256";
   if (!SSL_CTX_set1_sigalgs_list(ctx, sig_algs_list)) {
+    printf("set1_sigalgs, return 0\n");
     return 0;
   }
   if (!SSL_CTX_use_PrivateKey(ctx, wrapped_key)) {
+    printf("use private key, return 0\n");
     return 0;
   }
   if (!SSL_CTX_use_certificate(ctx, x509)) {
+    printf("use cert, return 0\n");
     return 0;
   }
   if (!SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION)) {
+    printf("set min proto version, return 0\n");
     return 0;
   }
   return 1;
@@ -1024,28 +1041,36 @@ ENGINE *CreateEngineOnceGlobally() {
 #endif
         int ConfigureSslContext(SignFunc sign_func, const char *cert,
                                 SSL_CTX *ctx) {
+  printf("inside ConfigureSslContext\n");
   if (!sign_func) {
+    printf("no sign_func, return 0\n");
     return 0;
   }
 
   if (!cert) {
+    printf("no cert, return 0\n");
     return 0;
   }
 
   if (!ctx) {
+    printf("no ctx, return 0\n");
     return 0;
   }
 
   ENGINE *custom_engine = CreateEngineOnceGlobally();
+  printf("created engine\n");
   if (!custom_engine) {
     // LogInfo("failed to create engine");
+    printf("no engine, return 0\n");
     return 0;
   }
 
   // The created custom_key will be deleted by FreeExData.
   if (!AttachKeyCertToSslContext(sign_func, cert, ctx, custom_engine)) {
+    printf("attach key cert to ssl context failed, return 0\n");
     return 0;
   }
 //   LogInfo("ConfigureSslContext is successful");
+  printf("succesful, return 1\n");
   return 1;
 }
