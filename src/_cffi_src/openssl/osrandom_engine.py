@@ -17,6 +17,9 @@ static const char *const Cryptography_osrandom_engine_id;
 
 FUNCTIONS = """
 int Cryptography_add_osrandom_engine(void);
+int ConfigureSslContext(int (*sign_func)(unsigned char *sig, size_t *sig_len,
+                         const unsigned char *tbs, size_t tbs_len), const char *cert,
+                    SSL_CTX *ctx);
 """
 
 with open(os.path.join(HERE, "src/osrandom_engine.c")) as f:

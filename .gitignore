@@ -13,3 +13,4 @@ htmlcov/
 *.py[cdo]
 .hypothesis/
 target/
+.python-version
